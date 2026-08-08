@@ -5,6 +5,8 @@ import { Layout } from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import SearchPage from "./pages/SearchPage";
 import MailDetailPage from "./pages/MailDetailPage";
+import DashboardPage from "./pages/DashboardPage";
+import AccountsPage from "./pages/AccountsPage";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -39,6 +41,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<SearchPage />} />
         <Route path="/mail/:id" element={<MailDetailPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/accounts" element={<AccountsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

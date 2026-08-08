@@ -63,6 +63,41 @@ export interface StatsSummary {
   top_senders: [string, number][];
 }
 
+export interface Account {
+  name: string;
+  imap_host: string;
+  imap_port: number;
+  imap_ssl: boolean;
+  imap_ssl_verify: boolean;
+  imap_user: string;
+  folders: string;
+  es_host: string | null;
+  es_user: string | null;
+  es_index: string | null;
+  es_verify_certs: boolean | null;
+  attachment_text: boolean | null;
+  attachment_max_bytes: number | null;
+  attachment_max_chars: number | null;
+  es_password_set: boolean;
+}
+
+/** Felder für Anlegen (name + imap_password Pflicht) bzw. Teil-Update (alles optional). */
+export interface AccountInput {
+  name?: string;
+  imap_host?: string;
+  imap_port?: number;
+  imap_ssl?: boolean;
+  imap_ssl_verify?: boolean;
+  imap_user?: string;
+  imap_password?: string;
+  folders?: string;
+  es_host?: string | null;
+  es_user?: string | null;
+  es_password?: string | null;
+  es_index?: string | null;
+  es_verify_certs?: boolean | null;
+}
+
 export interface SearchParams {
   q?: string;
   from?: string;

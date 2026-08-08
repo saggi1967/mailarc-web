@@ -2,6 +2,8 @@
 // Cookie-basierte Session → immer `credentials: "include"`. Kein Token im JS.
 
 import type {
+  Account,
+  AccountInput,
   AttachmentList,
   EmailDetail,
   SearchParams,
@@ -66,6 +68,20 @@ export const api = {
 
   // -- Statistik --
   stats: () => request<StatsSummary>("/api/stats/summary"),
+
+  // -- Konten --
+  accounts: {
+    list: () => request<Account[]>("/api/accounts"),
+    create: (body: AccountInput) =>
+      request<Account>("/api/accounts", { method: "POST", body: JSON.stringify(body) }),
+    update: (name: string, body: AccountInput) =>
+      request<Account>(`/api/accounts/${encodeURIComponent(name)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    remove: (name: string) =>
+      request<{ deleted: string }>(`/api/accounts/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  },
 };
 
 /** Direkt-URLs für Downloads/Anzeige (Navigation sendet das Session-Cookie mit). */
