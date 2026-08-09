@@ -98,6 +98,19 @@ export interface AccountInput {
   es_verify_certs?: boolean | null;
 }
 
+export interface WebUser {
+  username: string;
+  role: string; // "admin" | "user"
+  is_active: boolean;
+}
+
+export interface UserInput {
+  username?: string;
+  password?: string;
+  role?: string;
+  is_active?: boolean;
+}
+
 export interface SearchParams {
   q?: string;
   from?: string;

@@ -7,6 +7,7 @@ import SearchPage from "./pages/SearchPage";
 import MailDetailPage from "./pages/MailDetailPage";
 import DashboardPage from "./pages/DashboardPage";
 import AccountsPage from "./pages/AccountsPage";
+import UsersPage from "./pages/UsersPage";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/mail/:id" element={<MailDetailPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
+        <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

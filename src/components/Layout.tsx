@@ -8,12 +8,14 @@ const NAV = [
   { to: "/", label: "Suche" },
   { to: "/dashboard", label: "Statistik" },
   { to: "/accounts", label: "Konten" },
+  { to: "/users", label: "Benutzer", adminOnly: true },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const nav = NAV.filter((n) => !n.adminOnly || isAdmin);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
@@ -24,7 +26,7 @@ export function Layout({ children }: { children: ReactNode }) {
             mailarc
           </Typography>
           <Stack direction="row" spacing={1} sx={{ flexGrow: 1 }}>
-            {NAV.map((n) => (
+            {nav.map((n) => (
               <Button
                 key={n.to}
                 color="inherit"

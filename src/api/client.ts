@@ -9,6 +9,8 @@ import type {
   SearchParams,
   SearchResult,
   StatsSummary,
+  UserInput,
+  WebUser,
 } from "./types";
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:9000";
@@ -51,11 +53,11 @@ function qs(params: Record<string, unknown>): string {
 export const api = {
   // -- Auth --
   login: (username: string, password: string) =>
-    request<{ user: string }>("/api/auth/login", {
+    request<{ user: string; role: string }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
-  me: () => request<{ user: string }>("/api/auth/me"),
+  me: () => request<{ user: string; role: string }>("/api/auth/me"),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
 
   // -- Suche --
@@ -81,6 +83,20 @@ export const api = {
       }),
     remove: (name: string) =>
       request<{ deleted: string }>(`/api/accounts/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  },
+
+  // -- Benutzer (nur Admin) --
+  users: {
+    list: () => request<WebUser[]>("/api/users"),
+    create: (body: UserInput) =>
+      request<WebUser>("/api/users", { method: "POST", body: JSON.stringify(body) }),
+    update: (username: string, body: UserInput) =>
+      request<WebUser>(`/api/users/${encodeURIComponent(username)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    remove: (username: string) =>
+      request<{ deleted: string }>(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" }),
   },
 };
 
