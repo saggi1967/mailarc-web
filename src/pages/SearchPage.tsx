@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Alert,
@@ -54,6 +54,52 @@ const RANGES: [string, string][] = [
   ["custom", "Benutzerdefiniert"],
 ];
 
+const DEFAULT_PAGE_SIZE = 25;
+
+// --- URL ⇄ Zustand (die URL ist die Quelle der Wahrheit → „Zurück" stellt die Suche wieder her) ---
+function parseFilters(sp: URLSearchParams): Filters {
+  return {
+    q: sp.get("q") ?? "",
+    from: sp.get("from") ?? "",
+    to: sp.get("to") ?? "",
+    domain: sp.get("domain") ?? "",
+    subject: sp.get("subject") ?? "",
+    file: sp.get("file") ?? "",
+    mailbox: sp.get("mailbox") ?? "",
+    range: sp.get("range") ?? "",
+    since: sp.get("since") ?? "",
+    until: sp.get("until") ?? "",
+    attachments: sp.get("attachments") ?? "",
+    phrase: sp.get("phrase") === "1",
+  };
+}
+
+function serialize(f: Filters, page: number, pageSize: number): URLSearchParams {
+  const sp = new URLSearchParams();
+  const add = (k: string, v: string) => {
+    if (v) sp.set(k, v);
+  };
+  add("q", f.q);
+  add("from", f.from);
+  add("to", f.to);
+  add("domain", f.domain);
+  add("subject", f.subject);
+  add("file", f.file);
+  add("mailbox", f.mailbox);
+  add("attachments", f.attachments);
+  if (f.phrase) sp.set("phrase", "1");
+  if (f.range === "custom") {
+    sp.set("range", "custom");
+    add("since", f.since);
+    add("until", f.until);
+  } else {
+    add("range", f.range);
+  }
+  if (page) sp.set("page", String(page));
+  if (pageSize !== DEFAULT_PAGE_SIZE) sp.set("pageSize", String(pageSize));
+  return sp;
+}
+
 function toParams(f: Filters): SearchParams {
   const p: SearchParams = {};
   if (f.q) p.q = f.q;
@@ -75,7 +121,6 @@ function toParams(f: Filters): SearchParams {
   return p;
 }
 
-/** Aktive Filter (ohne q) als entfernbare Chips. */
 function activeChips(f: Filters): { key: keyof Filters | "range"; label: string }[] {
   const chips: { key: keyof Filters | "range"; label: string }[] = [];
   if (f.from) chips.push({ key: "from", label: `Von: ${f.from}` });
@@ -93,10 +138,6 @@ function activeChips(f: Filters): { key: keyof Filters | "range"; label: string 
   return chips;
 }
 
-function countActive(f: Filters): number {
-  return activeChips(f).length;
-}
-
 function fmtDate(value: string | null): string {
   if (!value) return "—";
   const d = new Date(value);
@@ -107,41 +148,43 @@ function fmtDate(value: string | null): string {
 
 export default function SearchPage() {
   const navigate = useNavigate();
-  const [draft, setDraft] = useState<Filters>(EMPTY);
-  const [applied, setApplied] = useState<Filters>(EMPTY);
-  const [showFilters, setShowFilters] = useState(false);
-  const [pagination, setPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Angewandte Suche kommt aus der URL; das Formular (draft) startet damit.
+  const applied = useMemo(() => parseFilters(searchParams), [searchParams]);
+  const page = Number(searchParams.get("page") ?? 0);
+  const pageSize = Number(searchParams.get("pageSize") ?? DEFAULT_PAGE_SIZE);
+
+  const [draft, setDraft] = useState<Filters>(applied);
+  const [showFilters, setShowFilters] = useState(() => activeChips(applied).length > 0);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["search", applied, pagination.page, pagination.pageSize],
-    queryFn: () =>
-      api.search({ ...toParams(applied), limit: pagination.pageSize, offset: pagination.page * pagination.pageSize }),
+    queryKey: ["search", searchParams.toString()],
+    queryFn: () => api.search({ ...toParams(applied), limit: pageSize, offset: page * pageSize }),
     placeholderData: keepPreviousData,
   });
 
   const set = (k: keyof Filters) => (v: Filters[keyof Filters]) => setDraft((f) => ({ ...f, [k]: v }));
 
-  function apply(next: Filters) {
-    setPagination((m) => ({ ...m, page: 0 }));
-    setApplied(next);
-  }
-
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    apply(draft);
+    setSearchParams(serialize(draft, 0, pageSize), { replace: true });
   }
 
   function reset() {
     setDraft(EMPTY);
-    apply(EMPTY);
+    setSearchParams(new URLSearchParams(), { replace: true });
+  }
+
+  function onPagination(model: GridPaginationModel) {
+    setSearchParams(serialize(applied, model.page, model.pageSize), { replace: true });
   }
 
   function removeChip(key: keyof Filters | "range") {
     const cleared: Partial<Filters> =
       key === "range" ? { range: "", since: "", until: "" } : key === "phrase" ? { phrase: false } : { [key]: "" };
-    const nextDraft = { ...draft, ...cleared };
-    setDraft(nextDraft);
-    apply({ ...applied, ...cleared });
+    setDraft((d) => ({ ...d, ...cleared }));
+    setSearchParams(serialize({ ...applied, ...cleared }, 0, pageSize), { replace: true });
   }
 
   const columns = useMemo<GridColDef<SearchItem>[]>(
@@ -201,7 +244,7 @@ export default function SearchPage() {
           />
           <Tooltip title="Filter">
             <IconButton onClick={() => setShowFilters((s) => !s)} color={showFilters ? "primary" : "default"}>
-              <Badge badgeContent={countActive(draft)} color="primary">
+              <Badge badgeContent={activeChips(draft).length} color="primary">
                 <TuneIcon />
               </Badge>
             </IconButton>
@@ -226,26 +269,14 @@ export default function SearchPage() {
             <TextField size="small" label="Betreff enthält" value={draft.subject} onChange={(e) => set("subject")(e.target.value)} />
             <TextField size="small" label="Anhang-Dateiname" value={draft.file} onChange={(e) => set("file")(e.target.value)} />
             <TextField size="small" label="Ordner" value={draft.mailbox} onChange={(e) => set("mailbox")(e.target.value)} />
-            <TextField
-              size="small"
-              select
-              label="Zeitraum"
-              value={draft.range}
-              onChange={(e) => set("range")(e.target.value)}
-            >
+            <TextField size="small" select label="Zeitraum" value={draft.range} onChange={(e) => set("range")(e.target.value)}>
               {RANGES.map(([v, l]) => (
                 <MenuItem key={v || "all"} value={v}>
                   {l}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              size="small"
-              select
-              label="Anhang"
-              value={draft.attachments}
-              onChange={(e) => set("attachments")(e.target.value)}
-            >
+            <TextField size="small" select label="Anhang" value={draft.attachments} onChange={(e) => set("attachments")(e.target.value)}>
               <MenuItem value="">Alle</MenuItem>
               <MenuItem value="yes">nur mit Anhang</MenuItem>
               <MenuItem value="no">nur ohne Anhang</MenuItem>
@@ -256,22 +287,8 @@ export default function SearchPage() {
             />
             {draft.range === "custom" && (
               <>
-                <TextField
-                  size="small"
-                  type="date"
-                  label="Von"
-                  InputLabelProps={{ shrink: true }}
-                  value={draft.since}
-                  onChange={(e) => set("since")(e.target.value)}
-                />
-                <TextField
-                  size="small"
-                  type="date"
-                  label="Bis"
-                  InputLabelProps={{ shrink: true }}
-                  value={draft.until}
-                  onChange={(e) => set("until")(e.target.value)}
-                />
+                <TextField size="small" type="date" label="Von" InputLabelProps={{ shrink: true }} value={draft.since} onChange={(e) => set("since")(e.target.value)} />
+                <TextField size="small" type="date" label="Bis" InputLabelProps={{ shrink: true }} value={draft.until} onChange={(e) => set("until")(e.target.value)} />
               </>
             )}
           </Box>
@@ -304,8 +321,8 @@ export default function SearchPage() {
           rowCount={data?.total ?? 0}
           loading={isFetching}
           paginationMode="server"
-          paginationModel={pagination}
-          onPaginationModelChange={setPagination}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={onPagination}
           pageSizeOptions={[25, 50, 100]}
           disableColumnMenu
           onRowClick={(p) => navigate(`/mail/${encodeURIComponent(String(p.id))}`)}
