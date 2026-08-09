@@ -101,10 +101,14 @@ export interface AccountInput {
 export interface SearchParams {
   q?: string;
   from?: string;
+  to?: string;
   domain?: string;
+  subject?: string;
+  file?: string;
   mailbox?: string;
   since?: string;
   until?: string;
+  last?: string;
   phrase?: boolean;
   attachments?: boolean;
   limit?: number;
