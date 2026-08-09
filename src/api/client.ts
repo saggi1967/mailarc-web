@@ -59,6 +59,11 @@ export const api = {
     }),
   me: () => request<{ user: string; role: string }>("/api/auth/me"),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
+  changePassword: (current_password: string, new_password: string) =>
+    request<{ ok: boolean }>("/api/auth/password", {
+      method: "POST",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
 
   // -- Suche --
   search: (p: SearchParams) => request<SearchResult>(`/api/search${qs(p as Record<string, unknown>)}`),

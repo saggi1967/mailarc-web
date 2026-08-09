@@ -1,8 +1,24 @@
-import type { ReactNode } from "react";
-import { AppBar, Box, Button, Container, Stack, Toolbar, Typography } from "@mui/material";
+import { useState, type ReactNode } from "react";
+import {
+  AppBar,
+  Box,
+  Button,
+  Container,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Stack,
+  Toolbar,
+  Typography,
+} from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import LockResetIcon from "@mui/icons-material/LockReset";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 
 const NAV = [
   { to: "/", label: "Suche" },
@@ -16,6 +32,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const nav = NAV.filter((n) => !n.adminOnly || isAdmin);
+
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [pwOpen, setPwOpen] = useState(false);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
@@ -37,17 +56,47 @@ export function Layout({ children }: { children: ReactNode }) {
               </Button>
             ))}
           </Stack>
-          <Typography variant="body2" sx={{ mr: 2, opacity: 0.9 }}>
+
+          <Button
+            color="inherit"
+            startIcon={<AccountCircleIcon />}
+            endIcon={<ArrowDropDownIcon />}
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+          >
             {user}
-          </Typography>
-          <Button color="inherit" onClick={() => logout()}>
-            Abmelden
           </Button>
+          <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                setPwOpen(true);
+              }}
+            >
+              <ListItemIcon>
+                <LockResetIcon fontSize="small" />
+              </ListItemIcon>
+              Passwort ändern
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                logout();
+              }}
+            >
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Abmelden
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
+
       <Container maxWidth="lg" sx={{ py: 3 }}>
         {children}
       </Container>
+
+      <ChangePasswordDialog open={pwOpen} onClose={() => setPwOpen(false)} />
     </Box>
   );
 }
