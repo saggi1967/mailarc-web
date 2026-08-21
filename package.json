@@ -1,7 +1,7 @@
 {
   "name": "mailarc-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "React-Frontend (Material UI) für das mailarc-Archiv – spricht die client-API des mailarc-servers.",
   "scripts": {
