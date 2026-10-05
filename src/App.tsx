@@ -4,6 +4,7 @@ import { useAuth } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import SearchPage from "./pages/SearchPage";
+import SearchesPage from "./pages/SearchesPage";
 import MailDetailPage from "./pages/MailDetailPage";
 import DashboardPage from "./pages/DashboardPage";
 import AccountsPage from "./pages/AccountsPage";
@@ -41,6 +42,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<SearchPage />} />
+        <Route path="/searches" element={<SearchesPage />} />
         <Route path="/mail/:id" element={<MailDetailPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />

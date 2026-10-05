@@ -22,6 +22,7 @@ import { ChangePasswordDialog } from "./ChangePasswordDialog";
 
 const NAV = [
   { to: "/", label: "Suche" },
+  { to: "/searches", label: "Favoriten" },
   { to: "/dashboard", label: "Statistik" },
   { to: "/accounts", label: "Konten" },
   { to: "/users", label: "Benutzer", adminOnly: true },

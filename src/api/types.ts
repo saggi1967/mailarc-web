@@ -127,3 +127,17 @@ export interface SearchParams {
   limit?: number;
   offset?: number;
 }
+
+/** Favorit / gespeicherte Suche (Feature F1). params ist eine benannte Filtermenge. */
+export interface SavedSearch {
+  id: number;
+  name: string;
+  params: SearchParams;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedSearchInput {
+  name?: string;
+  params?: SearchParams;
+}
