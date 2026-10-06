@@ -17,6 +17,9 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
   - Gemeinsames Filter-Modul `src/search/filters.ts` (URL ⇄ Zustand ⇄ API-Parameter,
     inkl. Rückabbildung gespeicherter Parameter) — aus der Suchseite extrahiert.
   - Nutzt die client-API `/api/searches` des `mailarc-server` (2.7.0.0).
+- **Erweiterte Suche – Stufe A (Regex):** Hinweis in den Suchfiltern, dass Werte in
+  `/…/` als regulärer Ausdruck ausgewertet werden (Von, An, Domain, Ordner) — serverseitig
+  seit `mailarc-server` 2.7.1.0.
 
 ## [0.4.0] – 2026-08-21
 

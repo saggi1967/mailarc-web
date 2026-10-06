@@ -238,6 +238,9 @@ export default function SearchPage() {
               </>
             )}
           </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+            Tipp: Werte in <code>/…/</code> werden als regulärer Ausdruck ausgewertet (Von, An, Domain, Ordner) — auf den ganzen Feldwert bezogen, Groß-/Kleinschreibung egal.
+          </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
             <Button type="submit" variant="contained" size="small">
               Anwenden
