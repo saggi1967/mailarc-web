@@ -21,6 +21,8 @@ import {
   Snackbar,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -40,6 +42,9 @@ import {
   toParams,
   type Filters,
 } from "../search/filters";
+import { MqlEditor } from "../search/MqlEditor";
+
+const MQL_PLACEHOLDER = 'z. B. from:@kunde.de AND (betreff:Rechnung OR filename:*.pdf)';
 
 function fmtDate(value: string | null): string {
   if (!value) return "—";
@@ -57,15 +62,28 @@ export default function SearchPage() {
   const applied = useMemo(() => parseFilters(searchParams), [searchParams]);
   const page = Number(searchParams.get("page") ?? 0);
   const pageSize = Number(searchParams.get("pageSize") ?? DEFAULT_PAGE_SIZE);
+  const mode = searchParams.get("mode") === "mql" ? "mql" : "form";
+  const mqlApplied = searchParams.get("mql") ?? "";
 
   const [draft, setDraft] = useState<Filters>(applied);
+  const [mqlDraft, setMqlDraft] = useState(mqlApplied);
   const [showFilters, setShowFilters] = useState(() => activeChips(applied).length > 0);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["search", searchParams.toString()],
-    queryFn: () => api.search({ ...toParams(applied), limit: pageSize, offset: page * pageSize }),
+    queryKey: ["search", mode, searchParams.toString()],
+    queryFn: () =>
+      mode === "mql"
+        ? api.searchMql(mqlApplied, { limit: pageSize, offset: page * pageSize })
+        : api.search({ ...toParams(applied), limit: pageSize, offset: page * pageSize }),
+    enabled: mode !== "mql" || mqlApplied.trim().length > 0,
     placeholderData: keepPreviousData,
+    retry: false,
   });
+  // Parse-Fehler des Servers (422) → Klartext + Position im MQL-Ausdruck.
+  const mqlError =
+    mode === "mql" && error instanceof ApiError && error.status === 422
+      ? (error.detail as { message?: string; position?: number } | null)
+      : null;
 
   const set = (k: keyof Filters) => (v: Filters[keyof Filters]) => setDraft((f) => ({ ...f, [k]: v }));
 
@@ -79,7 +97,29 @@ export default function SearchPage() {
     setSearchParams(new URLSearchParams(), { replace: true });
   }
 
+  function mqlUrl(text: string, pg = 0, size = pageSize): URLSearchParams {
+    const sp = new URLSearchParams();
+    sp.set("mode", "mql");
+    if (text.trim()) sp.set("mql", text.trim());
+    if (pg) sp.set("page", String(pg));
+    if (size !== DEFAULT_PAGE_SIZE) sp.set("pageSize", String(size));
+    return sp;
+  }
+
+  function submitMql() {
+    setSearchParams(mqlUrl(mqlDraft), { replace: true });
+  }
+
+  function switchMode(_e: unknown, next: "form" | "mql" | null) {
+    if (!next || next === mode) return;
+    setSearchParams(next === "mql" ? mqlUrl(mqlDraft) : serialize(draft, 0, pageSize), { replace: true });
+  }
+
   function onPagination(model: GridPaginationModel) {
+    if (mode === "mql") {
+      setSearchParams(mqlUrl(mqlApplied, model.page, model.pageSize), { replace: true });
+      return;
+    }
     setSearchParams(serialize(applied, model.page, model.pageSize), { replace: true });
   }
 
@@ -165,6 +205,12 @@ export default function SearchPage() {
 
   return (
     <Stack spacing={2}>
+      <ToggleButtonGroup size="small" exclusive value={mode} onChange={switchMode} aria-label="Suchmodus">
+        <ToggleButton value="form">Formular</ToggleButton>
+        <ToggleButton value="mql">Experte (MQL)</ToggleButton>
+      </ToggleButtonGroup>
+
+      {mode === "form" && (
       <Paper component="form" onSubmit={onSubmit} sx={{ p: 1.5 }} elevation={1}>
         <Stack direction="row" spacing={1}>
           <TextField
@@ -251,8 +297,34 @@ export default function SearchPage() {
           </Stack>
         </Collapse>
       </Paper>
+      )}
 
-      {chips.length > 0 && (
+      {mode === "mql" && (
+        <Paper sx={{ p: 1.5 }} elevation={1}>
+          <Stack spacing={1}>
+            <Box sx={{ border: 1, borderColor: mqlError ? "error.main" : "divider", borderRadius: 1, p: 0.5 }}>
+              <MqlEditor value={mqlDraft} onChange={setMqlDraft} onSubmit={submitMql} placeholder={MQL_PLACEHOLDER} />
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button variant="contained" size="small" startIcon={<SearchIcon />} onClick={submitMql}>
+                Suchen
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Felder (from/absender, betreff, zeit, filename …) · <code>AND OR NOT</code> · Klammern ·{" "}
+                <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> — Enter sucht.
+              </Typography>
+            </Stack>
+            {mqlError && (
+              <Alert severity="error">
+                {mqlError.message}
+                {typeof mqlError.position === "number" ? ` (Position ${mqlError.position})` : ""}
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      {mode === "form" && chips.length > 0 && (
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {chips.map((c) => (
             <Chip key={String(c.key) + c.label} label={c.label} onDelete={() => removeChip(c.key)} size="small" />
@@ -260,7 +332,7 @@ export default function SearchPage() {
         </Stack>
       )}
 
-      {error && <Alert severity="error">{(error as Error).message}</Alert>}
+      {error && !mqlError && <Alert severity="error">{(error as Error).message}</Alert>}
 
       <Paper elevation={1} sx={{ height: 600 }}>
         <DataGrid<SearchItem>

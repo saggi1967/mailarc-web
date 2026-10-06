@@ -19,7 +19,11 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
   - Nutzt die client-API `/api/searches` des `mailarc-server` (2.7.0.0).
 - **Erweiterte Suche – Stufe A (Regex):** Hinweis in den Suchfiltern, dass Werte in
   `/…/` als regulärer Ausdruck ausgewertet werden (Von, An, Domain, Ordner) — serverseitig
-  seit `mailarc-server` 2.7.1.0.
+  seit `mailarc-server` 2.8.0.0.
+- **Erweiterte Suche – B1 (MQL):** neuer Modus **„Experte (MQL)"** in der Suche mit
+  **CodeMirror-6-Editor** (Syntax-Highlighting + Feld-Autovervollständigung). Führt den
+  Ausdruck über `POST /api/search/mql` aus; Syntaxfehler werden inline mit Position
+  angezeigt. Modus & Ausdruck liegen im URL-Zustand (`?mode=mql&mql=…`).
 
 ## [0.4.0] – 2026-08-21
 
