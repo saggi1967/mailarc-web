@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Alert,
   Badge,
@@ -9,11 +9,16 @@ import {
   Checkbox,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   IconButton,
   InputAdornment,
   MenuItem,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -21,122 +26,20 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import TuneIcon from "@mui/icons-material/Tune";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import { DataGrid, type GridColDef, type GridPaginationModel } from "@mui/x-data-grid";
-import { api } from "../api/client";
-import type { SearchItem, SearchParams } from "../api/types";
-
-interface Filters {
-  q: string;
-  from: string;
-  to: string;
-  domain: string;
-  subject: string;
-  file: string;
-  mailbox: string;
-  range: string; // "" | "24h" | "7d" | "30d" | "365d" | "custom"
-  since: string;
-  until: string;
-  attachments: string; // "" | "yes" | "no"
-  phrase: boolean;
-}
-
-const EMPTY: Filters = {
-  q: "", from: "", to: "", domain: "", subject: "", file: "", mailbox: "",
-  range: "", since: "", until: "", attachments: "", phrase: false,
-};
-
-const RANGES: [string, string][] = [
-  ["", "Alle"],
-  ["24h", "Letzte 24 h"],
-  ["7d", "Letzte 7 Tage"],
-  ["30d", "Letzte 30 Tage"],
-  ["365d", "Letztes Jahr"],
-  ["custom", "Benutzerdefiniert"],
-];
-
-const DEFAULT_PAGE_SIZE = 25;
-
-// --- URL ⇄ Zustand (die URL ist die Quelle der Wahrheit → „Zurück" stellt die Suche wieder her) ---
-function parseFilters(sp: URLSearchParams): Filters {
-  return {
-    q: sp.get("q") ?? "",
-    from: sp.get("from") ?? "",
-    to: sp.get("to") ?? "",
-    domain: sp.get("domain") ?? "",
-    subject: sp.get("subject") ?? "",
-    file: sp.get("file") ?? "",
-    mailbox: sp.get("mailbox") ?? "",
-    range: sp.get("range") ?? "",
-    since: sp.get("since") ?? "",
-    until: sp.get("until") ?? "",
-    attachments: sp.get("attachments") ?? "",
-    phrase: sp.get("phrase") === "1",
-  };
-}
-
-function serialize(f: Filters, page: number, pageSize: number): URLSearchParams {
-  const sp = new URLSearchParams();
-  const add = (k: string, v: string) => {
-    if (v) sp.set(k, v);
-  };
-  add("q", f.q);
-  add("from", f.from);
-  add("to", f.to);
-  add("domain", f.domain);
-  add("subject", f.subject);
-  add("file", f.file);
-  add("mailbox", f.mailbox);
-  add("attachments", f.attachments);
-  if (f.phrase) sp.set("phrase", "1");
-  if (f.range === "custom") {
-    sp.set("range", "custom");
-    add("since", f.since);
-    add("until", f.until);
-  } else {
-    add("range", f.range);
-  }
-  if (page) sp.set("page", String(page));
-  if (pageSize !== DEFAULT_PAGE_SIZE) sp.set("pageSize", String(pageSize));
-  return sp;
-}
-
-function toParams(f: Filters): SearchParams {
-  const p: SearchParams = {};
-  if (f.q) p.q = f.q;
-  if (f.from) p.from = f.from;
-  if (f.to) p.to = f.to;
-  if (f.domain) p.domain = f.domain;
-  if (f.subject) p.subject = f.subject;
-  if (f.file) p.file = f.file;
-  if (f.mailbox) p.mailbox = f.mailbox;
-  if (f.phrase) p.phrase = true;
-  if (f.attachments === "yes") p.attachments = true;
-  else if (f.attachments === "no") p.attachments = false;
-  if (f.range === "custom") {
-    if (f.since) p.since = f.since;
-    if (f.until) p.until = f.until;
-  } else if (f.range) {
-    p.last = f.range;
-  }
-  return p;
-}
-
-function activeChips(f: Filters): { key: keyof Filters | "range"; label: string }[] {
-  const chips: { key: keyof Filters | "range"; label: string }[] = [];
-  if (f.from) chips.push({ key: "from", label: `Von: ${f.from}` });
-  if (f.to) chips.push({ key: "to", label: `An: ${f.to}` });
-  if (f.domain) chips.push({ key: "domain", label: `Domain: ${f.domain}` });
-  if (f.subject) chips.push({ key: "subject", label: `Betreff: ${f.subject}` });
-  if (f.file) chips.push({ key: "file", label: `Anhang: ${f.file}` });
-  if (f.mailbox) chips.push({ key: "mailbox", label: `Ordner: ${f.mailbox}` });
-  if (f.phrase) chips.push({ key: "phrase", label: "Phrase" });
-  if (f.attachments === "yes") chips.push({ key: "attachments", label: "mit Anhang" });
-  else if (f.attachments === "no") chips.push({ key: "attachments", label: "ohne Anhang" });
-  if (f.range === "custom" && (f.since || f.until))
-    chips.push({ key: "range", label: `Zeitraum: ${f.since || "…"} – ${f.until || "…"}` });
-  else if (f.range) chips.push({ key: "range", label: RANGES.find(([v]) => v === f.range)?.[1] ?? f.range });
-  return chips;
-}
+import { api, ApiError } from "../api/client";
+import type { SearchItem } from "../api/types";
+import {
+  DEFAULT_PAGE_SIZE,
+  EMPTY,
+  RANGES,
+  activeChips,
+  parseFilters,
+  serialize,
+  toParams,
+  type Filters,
+} from "../search/filters";
 
 function fmtDate(value: string | null): string {
   if (!value) return "—";
@@ -185,6 +88,42 @@ export default function SearchPage() {
       key === "range" ? { range: "", since: "", until: "" } : key === "phrase" ? { phrase: false } : { [key]: "" };
     setDraft((d) => ({ ...d, ...cleared }));
     setSearchParams(serialize({ ...applied, ...cleared }, 0, pageSize), { replace: true });
+  }
+
+  // -- Favorit speichern (F1): die aktuell angewandte Suche benennen und ablegen --
+  const qc = useQueryClient();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [snack, setSnack] = useState<string | null>(null);
+
+  const appliedParams = toParams(applied);
+  const hasCriteria = Object.keys(appliedParams).length > 0;
+
+  // Favoritenliste nur laden, wenn der Dialog offen ist — damit „gleicher Name"
+  // erkannt und dann überschrieben (PATCH) statt doppelt angelegt wird.
+  const favorites = useQuery({ queryKey: ["searches"], queryFn: api.searches.list, enabled: saveOpen });
+  const existing = favorites.data?.find((s) => s.name.trim() === saveName.trim());
+
+  const saveFavorite = useMutation({
+    mutationFn: () =>
+      existing
+        ? api.searches.update(existing.id, { name: saveName.trim(), params: appliedParams })
+        : api.searches.create({ name: saveName.trim(), params: appliedParams }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["searches"] });
+      setSaveOpen(false);
+      setSnack(
+        existing ? `Favorit „${saveName.trim()}“ aktualisiert.` : `Favorit „${saveName.trim()}“ gespeichert.`,
+      );
+    },
+    onError: (e) => setSaveError(e instanceof ApiError ? e.message : "Speichern fehlgeschlagen."),
+  });
+
+  function openSave() {
+    setSaveName(applied.q || applied.subject || applied.from || "");
+    setSaveError(null);
+    setSaveOpen(true);
   }
 
   const columns = useMemo<GridColDef<SearchItem>[]>(
@@ -248,6 +187,13 @@ export default function SearchPage() {
                 <TuneIcon />
               </Badge>
             </IconButton>
+          </Tooltip>
+          <Tooltip title={hasCriteria ? "Suche als Favorit speichern" : "Erst Suchkriterien wählen"}>
+            <span>
+              <IconButton onClick={openSave} disabled={!hasCriteria}>
+                <BookmarkAddIcon />
+              </IconButton>
+            </span>
           </Tooltip>
           <Button type="submit" variant="contained" startIcon={<SearchIcon />}>
             Suchen
@@ -332,6 +278,71 @@ export default function SearchPage() {
       <Typography variant="caption" color="text.secondary">
         {data ? `${data.total} Treffer` : ""}
       </Typography>
+
+      {/* Favorit speichern */}
+      <Dialog open={saveOpen} onClose={() => setSaveOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Suche als Favorit speichern</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            {saveError && <Alert severity="error">{saveError}</Alert>}
+            <TextField
+              autoFocus
+              label="Name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              fullWidth
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && saveName.trim() && !saveFavorite.isPending) saveFavorite.mutate();
+              }}
+            />
+            {existing && (
+              <Alert severity="info">
+                Ein Favorit „{existing.name}“ existiert bereits — seine Filter werden überschrieben.
+              </Alert>
+            )}
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Gespeicherte Filter
+              </Typography>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                {applied.q && <Chip size="small" label={`Volltext: ${applied.q}`} />}
+                {chips.map((c) => (
+                  <Chip key={String(c.key) + c.label} size="small" label={c.label} />
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveOpen(false)}>Abbrechen</Button>
+          <Button
+            variant="contained"
+            onClick={() => saveFavorite.mutate()}
+            disabled={saveFavorite.isPending || !saveName.trim()}
+          >
+            {saveFavorite.isPending ? "…" : existing ? "Überschreiben" : "Speichern"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={!!snack}
+        autoHideDuration={5000}
+        onClose={() => setSnack(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="success"
+          onClose={() => setSnack(null)}
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate("/searches")}>
+              Favoriten
+            </Button>
+          }
+        >
+          {snack}
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

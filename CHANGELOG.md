@@ -7,10 +7,16 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
 
 ## [Unreleased]
 
-### In Arbeit
-- **Favoriten / Gespeicherte Suchen (F1)** – „Suche speichern" in der Suche und eine
-  Favoriten-Verwaltung (Liste, umbenennen, ändern, löschen, ausführen) auf Basis der
-  neuen client-API `/api/searches` des `mailarc-server`. (Backend zuerst, UI folgt.)
+### Hinzugefügt
+- **Favoriten / Gespeicherte Suchen – Feature F1 (Speichern & CRUD).**
+  - „Suche speichern" (Lesezeichen-Symbol neben „Suchen"): die aktuell angewandten
+    Filter als benannten Favorit ablegen. Gleicher Name überschreibt den vorhandenen
+    Favorit (so ändert man dessen Parameter: laden → anpassen → gleicher Name).
+  - Neue Seite **Favoriten** (`/searches`): auflisten, ausführen (lädt die Suche in die
+    Suchmaske), umbenennen und löschen.
+  - Gemeinsames Filter-Modul `src/search/filters.ts` (URL ⇄ Zustand ⇄ API-Parameter,
+    inkl. Rückabbildung gespeicherter Parameter) — aus der Suchseite extrahiert.
+  - Nutzt die client-API `/api/searches` des `mailarc-server` (2.7.0.0).
 
 ## [0.4.0] – 2026-08-21
 

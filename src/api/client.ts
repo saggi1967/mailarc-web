@@ -6,6 +6,8 @@ import type {
   AccountInput,
   AttachmentList,
   EmailDetail,
+  SavedSearch,
+  SavedSearchInput,
   SearchParams,
   SearchResult,
   StatsSummary,
@@ -88,6 +90,21 @@ export const api = {
       }),
     remove: (name: string) =>
       request<{ deleted: string }>(`/api/accounts/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  },
+
+  // -- Favoriten / gespeicherte Suchen (F1) --
+  searches: {
+    list: () => request<SavedSearch[]>("/api/searches"),
+    create: (body: SavedSearchInput) =>
+      request<SavedSearch>("/api/searches", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: SavedSearchInput) =>
+      request<SavedSearch>(`/api/searches/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    remove: (id: number) =>
+      request<{ deleted: number }>(`/api/searches/${id}`, { method: "DELETE" }),
+    run: (id: number, p?: { limit?: number; offset?: number }) =>
+      request<SearchResult>(`/api/searches/${id}/run${qs((p ?? {}) as Record<string, unknown>)}`, {
+        method: "POST",
+      }),
   },
 
   // -- Benutzer (nur Admin) --
