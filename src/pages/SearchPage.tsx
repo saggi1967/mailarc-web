@@ -37,6 +37,7 @@ import {
   EMPTY,
   RANGES,
   activeChips,
+  filtersToMql,
   parseFilters,
   serialize,
   toParams,
@@ -112,7 +113,14 @@ export default function SearchPage() {
 
   function switchMode(_e: unknown, next: "form" | "mql" | null) {
     if (!next || next === mode) return;
-    setSearchParams(next === "mql" ? mqlUrl(mqlDraft) : serialize(draft, 0, pageSize), { replace: true });
+    if (next === "mql") {
+      // Round-Trip: die aktuelle Formularsuche als MQL übernehmen (falls Editor leer).
+      const text = mqlDraft.trim() || filtersToMql(applied);
+      setMqlDraft(text);
+      setSearchParams(mqlUrl(text), { replace: true });
+    } else {
+      setSearchParams(serialize(draft, 0, pageSize), { replace: true });
+    }
   }
 
   function onPagination(model: GridPaginationModel) {
@@ -311,7 +319,8 @@ export default function SearchPage() {
               </Button>
               <Typography variant="caption" color="text.secondary">
                 Felder (from/absender, betreff, zeit, filename …) · <code>AND OR NOT</code> · Klammern ·{" "}
-                <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> — Enter sucht.
+                <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> ·{" "}
+                <code>foreach FELD in [a, b]: …</code> — Enter sucht.
               </Typography>
             </Stack>
             {mqlError && (

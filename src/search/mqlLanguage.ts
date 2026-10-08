@@ -59,12 +59,35 @@ const streamLang = StreamLanguage.define<{ expectValue: boolean }>({
   },
 });
 
+// Wert-Vorschläge je Feld (nach feld: bzw. feld ==).
+const VALUE_HINTS: Record<string, string[]> = {
+  has: ["attachment"], anhang: ["attachment", "ja", "nein"],
+  filetype: ["pdf", "docx", "xlsx", "png"],
+  date: ["last-7d", "last-30d", "last-quarter", "last-year"],
+  zeit: ["last-7d", "last-30d", "last-quarter", "last-year"],
+  after: ["last-30d", "2026-01-01"], before: ["2026-01-01"],
+};
+
 function completions(ctx: CompletionContext): CompletionResult | null {
+  // Werte nach einem Feld-Operator vorschlagen (feld:…, feld ==…)
+  const fv = ctx.matchBefore(/([a-zäöü]+)\s*[:=]=?\s*([^\s()"]*)$/i);
+  if (fv) {
+    const m = /([a-zäöü]+)\s*[:=]=?\s*([^\s()"]*)$/i.exec(fv.text);
+    const hints = m && VALUE_HINTS[m[1].toLowerCase()];
+    if (hints && m) {
+      return {
+        from: fv.to - m[2].length,
+        options: hints.map((h) => ({ label: h, type: "text" as const })),
+        validFor: /^[^\s()"]*$/,
+      };
+    }
+  }
+  // sonst Feldnamen + Logik
   const word = ctx.matchBefore(/[\wäöüÄÖÜ]+/);
   if (!word || (word.from === word.to && !ctx.explicit)) return null;
   const options = [
     ...MQL_FIELDS.map((f) => ({ label: `${f}:`, type: "property" as const })),
-    ...["AND", "OR", "NOT"].map((k) => ({ label: k, type: "keyword" as const })),
+    ...["AND", "OR", "NOT", "foreach"].map((k) => ({ label: k, type: "keyword" as const })),
   ];
   return { from: word.from, options, validFor: /^[\wäöüÄÖÜ:]*$/ };
 }
