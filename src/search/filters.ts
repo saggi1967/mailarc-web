@@ -131,6 +131,33 @@ export function paramsToSearchString(p: SearchParams): string {
   return serialize(searchParamsToFilters(p), 0, DEFAULT_PAGE_SIZE).toString();
 }
 
+/** Ein Filterwert als MQL-Wert: Regex unverändert, Werte mit Leerzeichen als "Phrase". */
+function mqlValue(v: string): string {
+  if (v.length >= 2 && v.startsWith("/") && v.endsWith("/")) return v;
+  return /\s/.test(v) ? `"${v.replace(/"/g, "")}"` : v;
+}
+
+/** Formular-Filter → MQL-Ausdruck (Round-Trip: Moduswechsel übernimmt die Suche). */
+export function filtersToMql(f: Filters): string {
+  const parts: string[] = [];
+  if (f.q) parts.push(f.phrase ? `"${f.q.replace(/"/g, "")}"` : mqlValue(f.q));
+  if (f.from) parts.push(`from:${mqlValue(f.from)}`);
+  if (f.to) parts.push(`to:${mqlValue(f.to)}`);
+  if (f.domain) parts.push(`domain:${mqlValue(f.domain)}`);
+  if (f.subject) parts.push(`subject:${mqlValue(f.subject)}`);
+  if (f.file) parts.push(`filename:${mqlValue(f.file)}`);
+  if (f.mailbox) parts.push(`mailbox:${mqlValue(f.mailbox)}`);
+  if (f.attachments === "yes") parts.push("has:attachment");
+  else if (f.attachments === "no") parts.push("NOT has:attachment");
+  if (f.range === "custom") {
+    if (f.since) parts.push(`after:${f.since}`);
+    if (f.until) parts.push(`before:${f.until}`);
+  } else if (f.range) {
+    parts.push(`date:last-${f.range}`);
+  }
+  return parts.join(" AND ");
+}
+
 export function activeChips(f: Filters): { key: keyof Filters | "range"; label: string }[] {
   const chips: { key: keyof Filters | "range"; label: string }[] = [];
   if (f.from) chips.push({ key: "from", label: `Von: ${f.from}` });

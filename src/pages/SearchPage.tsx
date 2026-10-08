@@ -37,6 +37,7 @@ import {
   EMPTY,
   RANGES,
   activeChips,
+  filtersToMql,
   parseFilters,
   serialize,
   toParams,
@@ -112,7 +113,14 @@ export default function SearchPage() {
 
   function switchMode(_e: unknown, next: "form" | "mql" | null) {
     if (!next || next === mode) return;
-    setSearchParams(next === "mql" ? mqlUrl(mqlDraft) : serialize(draft, 0, pageSize), { replace: true });
+    if (next === "mql") {
+      // Round-Trip: die aktuelle Formularsuche als MQL übernehmen (falls Editor leer).
+      const text = mqlDraft.trim() || filtersToMql(applied);
+      setMqlDraft(text);
+      setSearchParams(mqlUrl(text), { replace: true });
+    } else {
+      setSearchParams(serialize(draft, 0, pageSize), { replace: true });
+    }
   }
 
   function onPagination(model: GridPaginationModel) {

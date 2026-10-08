@@ -24,6 +24,9 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
   **CodeMirror-6-Editor** (Syntax-Highlighting + Feld-Autovervollständigung). Führt den
   Ausdruck über `POST /api/search/mql` aus; Syntaxfehler werden inline mit Position
   angezeigt. Modus & Ausdruck liegen im URL-Zustand (`?mode=mql&mql=…`).
+- **Erweiterte Suche – B2 (Teil):** Round-Trip **Formular → MQL** — der Wechsel in den
+  Experten-Modus übernimmt die aktuelle Formularsuche als MQL-Ausdruck. Autovervollständigung
+  jetzt auch für **Werte** (`has:`, `date`/`zeit`, `filetype`).
 
 ## [0.4.0] – 2026-08-21
 
