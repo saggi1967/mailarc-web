@@ -87,7 +87,7 @@ function completions(ctx: CompletionContext): CompletionResult | null {
   if (!word || (word.from === word.to && !ctx.explicit)) return null;
   const options = [
     ...MQL_FIELDS.map((f) => ({ label: `${f}:`, type: "property" as const })),
-    ...["AND", "OR", "NOT"].map((k) => ({ label: k, type: "keyword" as const })),
+    ...["AND", "OR", "NOT", "foreach"].map((k) => ({ label: k, type: "keyword" as const })),
   ];
   return { from: word.from, options, validFor: /^[\wäöüÄÖÜ:]*$/ };
 }

@@ -26,7 +26,8 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
   angezeigt. Modus & Ausdruck liegen im URL-Zustand (`?mode=mql&mql=…`).
 - **Erweiterte Suche – B2 (Teil):** Round-Trip **Formular → MQL** — der Wechsel in den
   Experten-Modus übernimmt die aktuelle Formularsuche als MQL-Ausdruck. Autovervollständigung
-  jetzt auch für **Werte** (`has:`, `date`/`zeit`, `filetype`).
+  jetzt auch für **Werte** (`has:`, `date`/`zeit`, `filetype`) und das Schlüsselwort
+  `foreach`. `foreach FELD in [a, b]: …` (Vereinigung) wird vom Server ab 2.8.1.0 ausgeführt.
 
 ## [0.4.0] – 2026-08-21
 

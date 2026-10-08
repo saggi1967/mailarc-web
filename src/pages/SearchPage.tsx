@@ -319,7 +319,8 @@ export default function SearchPage() {
               </Button>
               <Typography variant="caption" color="text.secondary">
                 Felder (from/absender, betreff, zeit, filename …) · <code>AND OR NOT</code> · Klammern ·{" "}
-                <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> — Enter sucht.
+                <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> ·{" "}
+                <code>foreach FELD in [a, b]: …</code> — Enter sucht.
               </Typography>
             </Stack>
             {mqlError && (
