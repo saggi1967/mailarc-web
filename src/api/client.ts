@@ -19,9 +19,11 @@ export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:9000"
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  detail: unknown; // roher `detail`-Wert (String oder Objekt, z. B. MQL {message, position})
+  constructor(status: number, message: string, detail?: unknown) {
     super(message);
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -32,13 +34,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail: unknown = res.statusText;
     try {
       detail = (await res.json()).detail ?? detail;
     } catch {
       /* kein JSON-Body */
     }
-    throw new ApiError(res.status, detail);
+    // detail kann ein Objekt sein (z. B. MQL-Fehler {message, position}).
+    const message =
+      typeof detail === "string"
+        ? detail
+        : (detail as { message?: string })?.message ?? res.statusText;
+    throw new ApiError(res.status, message, detail);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
@@ -70,6 +77,12 @@ export const api = {
   // -- Suche --
   search: (p: SearchParams) => request<SearchResult>(`/api/search${qs(p as Record<string, unknown>)}`),
   count: (p: SearchParams) => request<{ count: number }>(`/api/search/count${qs(p as Record<string, unknown>)}`),
+  // Erweiterte Suche (MQL, B1): Ausdruck serverseitig parsen + ausführen.
+  searchMql: (mql: string, p?: { limit?: number; offset?: number }) =>
+    request<SearchResult>("/api/search/mql", {
+      method: "POST",
+      body: JSON.stringify({ mql, limit: p?.limit, offset: p?.offset }),
+    }),
 
   // -- Einzelmail --
   email: (id: string) => request<EmailDetail>(`/api/emails/${encodeURIComponent(id)}`),
