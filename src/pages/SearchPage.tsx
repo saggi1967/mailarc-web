@@ -38,6 +38,7 @@ import {
   RANGES,
   activeChips,
   filtersToMql,
+  mqlToFilters,
   parseFilters,
   serialize,
   toParams,
@@ -119,7 +120,18 @@ export default function SearchPage() {
       setMqlDraft(text);
       setSearchParams(mqlUrl(text), { replace: true });
     } else {
-      setSearchParams(serialize(draft, 0, pageSize), { replace: true });
+      // Rückweg: MQL best effort ins Formular übernehmen.
+      const { filters, exact } = mqlToFilters(mqlDraft || mqlApplied);
+      setDraft(filters);
+      setShowFilters(activeChips(filters).length > 0);
+      setSearchParams(serialize(filters, 0, pageSize), { replace: true });
+      if (!exact) {
+        setSnackSev("warning");
+        setSnack(
+          "Der MQL-Ausdruck ließ sich nicht vollständig ins Formular übernehmen " +
+            "(z. B. ODER/NICHT/Klammern/foreach, Größe). Nicht abbildbare Teile wurden weggelassen.",
+        );
+      }
     }
   }
 
@@ -144,6 +156,7 @@ export default function SearchPage() {
   const [saveName, setSaveName] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
+  const [snackSev, setSnackSev] = useState<"success" | "warning">("success");
 
   const appliedParams = toParams(applied);
   const hasCriteria = Object.keys(appliedParams).length > 0;
@@ -161,6 +174,7 @@ export default function SearchPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["searches"] });
       setSaveOpen(false);
+      setSnackSev("success");
       setSnack(
         existing ? `Favorit „${saveName.trim()}“ aktualisiert.` : `Favorit „${saveName.trim()}“ gespeichert.`,
       );
@@ -416,12 +430,14 @@ export default function SearchPage() {
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          severity="success"
+          severity={snackSev}
           onClose={() => setSnack(null)}
           action={
-            <Button color="inherit" size="small" onClick={() => navigate("/searches")}>
-              Favoriten
-            </Button>
+            snackSev === "success" ? (
+              <Button color="inherit" size="small" onClick={() => navigate("/searches")}>
+                Favoriten
+              </Button>
+            ) : undefined
           }
         >
           {snack}

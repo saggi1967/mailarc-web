@@ -28,6 +28,9 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
   Experten-Modus übernimmt die aktuelle Formularsuche als MQL-Ausdruck. Autovervollständigung
   jetzt auch für **Werte** (`has:`, `date`/`zeit`, `filetype`) und das Schlüsselwort
   `foreach`. `foreach FELD in [a, b]: …` (Vereinigung) wird vom Server ab 2.8.1.0 ausgeführt.
+- **Erweiterte Suche – Rückweg MQL → Formular:** der Wechsel von Experte (MQL) zurück ins
+  Formular übernimmt den flach abbildbaren Teil des Ausdrucks; nicht darstellbare Teile
+  (ODER/NICHT/Klammern/`foreach`/Größe) werden weggelassen und per Hinweis gemeldet.
 
 ## [0.4.0] – 2026-08-21
 
