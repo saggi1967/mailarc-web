@@ -126,6 +126,8 @@ export interface SearchParams {
   attachments?: boolean;
   limit?: number;
   offset?: number;
+  /** Erweiterte Suche: statt der Formularfelder ein MQL-Ausdruck (Favoriten). */
+  mql?: string;
 }
 
 /** Favorit / gespeicherte Suche (Feature F1). params ist eine benannte Filtermenge. */

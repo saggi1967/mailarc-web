@@ -158,6 +158,109 @@ export function filtersToMql(f: Filters): string {
   return parts.join(" AND ");
 }
 
+// ── Rückweg MQL → Formular (best effort) ───────────────────────────────────
+// Nur der flach abbildbare Teil von MQL lässt sich als Formular darstellen.
+// Alles mit OR/NOT/Klammern/foreach/size ist nicht abbildbar → exact=false.
+type MqlTok = { kind: string; text: string };
+const _STOP = new Set(" \t\n\r()[],\"/:=<>".split(""));
+
+function tokenizeMql(s: string): MqlTok[] {
+  const toks: MqlTok[] = [];
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if ("()[],".includes(c)) {
+      const kind = { "(": "LPAREN", ")": "RPAREN", "[": "LBRACK", "]": "RBRACK", ",": "COMMA" }[c]!;
+      toks.push({ kind, text: c }); i++; continue;
+    }
+    if (c === '"') { let j = i + 1; while (j < n && s[j] !== '"') j++; toks.push({ kind: "STR", text: s.slice(i + 1, j) }); i = j < n ? j + 1 : j; continue; }
+    if (c === "/") { let j = i + 1; while (j < n && s[j] !== "/") j++; toks.push({ kind: "REGEX", text: s.slice(i + 1, j) }); i = j < n ? j + 1 : j; continue; }
+    if (s.slice(i, i + 2) === "==") { toks.push({ kind: "OP", text: "==" }); i += 2; continue; }
+    if (c === ":" || c === "<" || c === ">") { toks.push({ kind: "OP", text: c }); i++; continue; }
+    let j = i;
+    while (j < n && !_STOP.has(s[j])) j++;
+    if (j === i) { i++; continue; }
+    toks.push({ kind: "WORD", text: s.slice(i, j) }); i = j;
+  }
+  return toks;
+}
+
+const _REL_TO_RANGE: Record<string, string> = {
+  "24h": "24h", "7d": "7d", week: "7d", "30d": "30d", month: "30d", "365d": "365d", year: "365d",
+};
+
+/** MQL → Formular-Filter (verlustbehaftet). exact=false, wenn Teile nicht abbildbar waren. */
+export function mqlToFilters(mql: string): { filters: Filters; exact: boolean } {
+  const f: Filters = { ...EMPTY };
+  const q: string[] = [];
+  let exact = true;
+  const toks = tokenizeMql(mql || "");
+
+  // Strukturen, die ein flaches Formular nicht ausdrücken kann → gar nicht übernehmen.
+  const blocked = (t: MqlTok) =>
+    ["LPAREN", "RPAREN", "LBRACK", "RBRACK", "COMMA"].includes(t.kind) ||
+    (t.kind === "WORD" && ["OR", "ODER", "NOT", "NICHT", "FOREACH"].includes(t.text.toUpperCase()));
+  if (toks.some(blocked)) return { filters: EMPTY, exact: false };
+
+  const isAnd = (t: MqlTok) => t.kind === "WORD" && ["AND", "UND"].includes(t.text.toUpperCase());
+  const setDate = (val: string, slot: "since" | "until") => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) { f.range = "custom"; f[slot] = val; return; }
+    let t = val.toLowerCase();
+    if (t.startsWith("last-")) t = t.slice(5);
+    const r = _REL_TO_RANGE[t];
+    if (r && slot === "since") f.range = r;
+    else exact = false;
+  };
+
+  let i = 0;
+  while (i < toks.length) {
+    const t = toks[i];
+    if (isAnd(t)) { i++; continue; }
+    const nxt = toks[i + 1];
+    if (t.kind === "WORD" && nxt && nxt.kind === "OP") {
+      const field = t.text.toLowerCase();
+      const op = nxt.text;
+      const v = toks[i + 2];
+      i += 3;
+      if (!v || v.kind === "OP" || isAnd(v)) { exact = false; continue; }
+      if (op === ">" || op === "<") { exact = false; continue; } // size & Co. nicht abbildbar
+      const raw = v.text;
+      const val = v.kind === "REGEX" ? `/${raw}/` : raw;
+      const phrase = v.kind === "STR";
+      switch (field) {
+        case "from": case "absender": f.from = val; break;
+        case "to": case "an": case "empfänger": case "empfaenger": f.to = val; break;
+        case "domain": f.domain = val; break;
+        case "subject": case "betreff": f.subject = val; break;
+        case "filename": case "dateiname": case "file": f.file = val; break;
+        case "filetype": f.file = `*.${raw.replace(/^\./, "").toLowerCase()}`; break;
+        case "mailbox": case "folder": case "ordner": f.mailbox = val; break;
+        case "body": case "inhalt": case "text": q.push(raw); if (phrase) f.phrase = true; break;
+        case "attachtext": case "anhangtext": q.push(raw); if (phrase) f.phrase = true; exact = false; break;
+        case "has": case "anhang":
+          if (["attachment", "anhang", "ja", "yes", "true", "1"].includes(raw.toLowerCase())) f.attachments = "yes";
+          else if (["nein", "no", "false", "0"].includes(raw.toLowerCase())) f.attachments = "no";
+          else exact = false;
+          break;
+        case "date": case "zeit": case "after": setDate(raw, "since"); break;
+        case "before": setDate(raw, "until"); break;
+        default: exact = false; break;
+      }
+      continue;
+    }
+    if (t.kind === "WORD" || t.kind === "STR" || t.kind === "REGEX") {
+      q.push(t.kind === "REGEX" ? `/${t.text}/` : t.text);
+      if (t.kind === "STR") f.phrase = true;
+      i++; continue;
+    }
+    exact = false; i++;
+  }
+  f.q = q.join(" ").trim();
+  return { filters: f, exact };
+}
+
 export function activeChips(f: Filters): { key: keyof Filters | "range"; label: string }[] {
   const chips: { key: keyof Filters | "range"; label: string }[] = [];
   if (f.from) chips.push({ key: "from", label: `Von: ${f.from}` });
