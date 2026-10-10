@@ -36,7 +36,8 @@ export function MqlEditor({
       minHeight={minHeight}
       autoFocus={autoFocus}
       extensions={[...mqlExtensions(), submit, EditorView.lineWrapping]}
-      basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
+      // Default-Highlighting aus, damit unser kräftiger MQL-Stil nicht überlagert wird.
+      basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false, syntaxHighlighting: false }}
     />
   );
 }

@@ -69,11 +69,11 @@ const streamLang = StreamLanguage.define<{ expectValue: boolean }>({
 
 // Kräftige, gut unterscheidbare Farben für die MQL-Bestandteile.
 const mqlHighlight = HighlightStyle.define([
-  { tag: t.propertyName, color: "#1565c0", fontWeight: "600" }, // Felder: from:, betreff:
-  { tag: t.keyword, color: "#6a1b9a", fontWeight: "700" },      // AND OR NOT foreach
-  { tag: t.operator, color: "#00838f" },                        // : == > <
-  { tag: t.string, color: "#2e7d32" },                          // "Phrase" /Regex/
-  { tag: t.paren, color: "#b26a00" },                           // ( )
+  { tag: t.propertyName, color: "#1a56db", fontWeight: "700" }, // Felder: from:, betreff:
+  { tag: t.keyword, color: "#7c3aed", fontWeight: "700" },      // AND OR NOT foreach
+  { tag: t.operator, color: "#0e7490", fontWeight: "700" },     // : == > <
+  { tag: t.string, color: "#15803d", fontWeight: "600" },       // "Phrase" /Regex/
+  { tag: t.paren, color: "#c2410c", fontWeight: "700" },        // ( )
 ]);
 
 // Wert-Vorschläge je Feld (nach feld: bzw. feld ==).
