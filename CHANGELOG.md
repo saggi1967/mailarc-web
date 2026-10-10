@@ -7,6 +7,10 @@ die Versionierung folgt dem Schema des `mailarc-server` (vierstellig).
 
 ## [Unreleased]
 
+## [0.5.0] – 2026-10-10
+
+Favoriten (F1) und die Erweiterte Suche (MQL) im Web.
+
 ### Hinzugefügt
 - **Favoriten / Gespeicherte Suchen – Feature F1 (Speichern & CRUD).**
   - „Suche speichern" (Lesezeichen-Symbol neben „Suchen"): die aktuell angewandten
@@ -53,5 +57,6 @@ Spricht ausschließlich die client-API (`/api`) des `mailarc-server` (Session-Co
 - Grundgerüst: Vite + React + TypeScript + Material UI, react-router, TanStack Query.
 - Professionelle README.
 
-[Unreleased]: https://github.com/saggi1967/mailarc-web/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/saggi1967/mailarc-web/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/saggi1967/mailarc-web/releases/tag/v0.5.0
 [0.4.0]: https://github.com/saggi1967/mailarc-web/releases/tag/v0.4.0
