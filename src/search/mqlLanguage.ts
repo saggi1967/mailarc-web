@@ -2,8 +2,9 @@
 // Syntax-Highlighting (Felder, Operatoren, Logik, Phrasen, Regex) + Feld-Autocomplete.
 // Die maßgebliche Grammatik liegt serverseitig (app/mql.py); dies ist nur Komfort.
 
-import { StreamLanguage } from "@codemirror/language";
+import { StreamLanguage, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { tags as t } from "@lezer/highlight";
 import type { Extension } from "@codemirror/state";
 
 // Feldnamen (inkl. deutscher Aliase) — Spiegel von FIELDS in app/mql.py.
@@ -34,7 +35,7 @@ const streamLang = StreamLanguage.define<{ expectValue: boolean }>({
     }
     if (ch === "(" || ch === ")") {
       stream.next();
-      return "bracket";
+      return "bracket";  // via tokenTable → tags.paren (eingefärbt)
     }
     if (stream.match(/^(==|[:<>])/)) {
       state.expectValue = true;
@@ -49,7 +50,7 @@ const streamLang = StreamLanguage.define<{ expectValue: boolean }>({
       // Feldname, wenn direkt ein Operator folgt
       const rest = stream.string.slice(stream.pos);
       if (/^\s*(:|==|<|>)/.test(rest) && MQL_FIELDS.includes(word.toLowerCase())) {
-        return "propertyName";
+        return "property";
       }
       state.expectValue = false;
       return null;
@@ -57,7 +58,23 @@ const streamLang = StreamLanguage.define<{ expectValue: boolean }>({
     stream.next();
     return null;
   },
+  tokenTable: {
+    property: t.propertyName,
+    keyword: t.keyword,
+    operator: t.operator,
+    string: t.string,
+    bracket: t.paren,
+  },
 });
+
+// Kräftige, gut unterscheidbare Farben für die MQL-Bestandteile.
+const mqlHighlight = HighlightStyle.define([
+  { tag: t.propertyName, color: "#1565c0", fontWeight: "600" }, // Felder: from:, betreff:
+  { tag: t.keyword, color: "#6a1b9a", fontWeight: "700" },      // AND OR NOT foreach
+  { tag: t.operator, color: "#00838f" },                        // : == > <
+  { tag: t.string, color: "#2e7d32" },                          // "Phrase" /Regex/
+  { tag: t.paren, color: "#b26a00" },                           // ( )
+]);
 
 // Wert-Vorschläge je Feld (nach feld: bzw. feld ==).
 const VALUE_HINTS: Record<string, string[]> = {
@@ -93,5 +110,5 @@ function completions(ctx: CompletionContext): CompletionResult | null {
 }
 
 export function mqlExtensions(): Extension[] {
-  return [streamLang, autocompletion({ override: [completions] })];
+  return [streamLang, syntaxHighlighting(mqlHighlight), autocompletion({ override: [completions] })];
 }

@@ -41,6 +41,7 @@ function fmtDate(value: string | null): string {
 
 /** Chips, die die gespeicherten Filter eines Favoriten zusammenfassen (inkl. Volltext). */
 function summaryChips(s: SavedSearch) {
+  if (s.params.mql) return [`MQL: ${s.params.mql}`];
   const chips = activeChips(searchParamsToFilters(s.params));
   const labels = s.params.q ? [`Volltext: ${s.params.q}`, ...chips.map((c) => c.label)] : chips.map((c) => c.label);
   return labels.length ? labels : ["alle Mails"];
@@ -82,6 +83,13 @@ export default function SearchesPage() {
   });
 
   function load(s: SavedSearch) {
+    if (s.params.mql) {
+      const sp = new URLSearchParams();
+      sp.set("mode", "mql");
+      sp.set("mql", s.params.mql);
+      navigate(`/?${sp.toString()}`);
+      return;
+    }
     navigate(`/?${paramsToSearchString(s.params)}`);
   }
   function openRename(s: SavedSearch) {

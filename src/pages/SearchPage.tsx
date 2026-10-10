@@ -29,9 +29,10 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import TuneIcon from "@mui/icons-material/Tune";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { DataGrid, type GridColDef, type GridPaginationModel } from "@mui/x-data-grid";
 import { api, ApiError } from "../api/client";
-import type { SearchItem } from "../api/types";
+import type { SearchItem, SearchParams } from "../api/types";
 import {
   DEFAULT_PAGE_SIZE,
   EMPTY,
@@ -157,9 +158,11 @@ export default function SearchPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
   const [snackSev, setSnackSev] = useState<"success" | "warning">("success");
+  const [mqlPopup, setMqlPopup] = useState(false);
 
-  const appliedParams = toParams(applied);
-  const hasCriteria = Object.keys(appliedParams).length > 0;
+  const mqlText = (mqlDraft || mqlApplied).trim();
+  const currentParams: SearchParams = mode === "mql" ? { mql: mqlText } : toParams(applied);
+  const hasCriteria = mode === "mql" ? mqlText.length > 0 : Object.keys(currentParams).length > 0;
 
   // Favoritenliste nur laden, wenn der Dialog offen ist — damit „gleicher Name"
   // erkannt und dann überschrieben (PATCH) statt doppelt angelegt wird.
@@ -169,8 +172,8 @@ export default function SearchPage() {
   const saveFavorite = useMutation({
     mutationFn: () =>
       existing
-        ? api.searches.update(existing.id, { name: saveName.trim(), params: appliedParams })
-        : api.searches.create({ name: saveName.trim(), params: appliedParams }),
+        ? api.searches.update(existing.id, { name: saveName.trim(), params: currentParams })
+        : api.searches.create({ name: saveName.trim(), params: currentParams }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["searches"] });
       setSaveOpen(false);
@@ -183,7 +186,7 @@ export default function SearchPage() {
   });
 
   function openSave() {
-    setSaveName(applied.q || applied.subject || applied.from || "");
+    setSaveName(mode === "mql" ? "" : applied.q || applied.subject || applied.from || "");
     setSaveError(null);
     setSaveOpen(true);
   }
@@ -331,6 +334,18 @@ export default function SearchPage() {
               <Button variant="contained" size="small" startIcon={<SearchIcon />} onClick={submitMql}>
                 Suchen
               </Button>
+              <Tooltip title="Großer Editor (mehrzeilig) — gut für foreach">
+                <IconButton size="small" onClick={() => setMqlPopup(true)}>
+                  <OpenInFullIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={hasCriteria ? "MQL als Favorit speichern" : "Erst einen Ausdruck eingeben"}>
+                <span>
+                  <IconButton size="small" onClick={openSave} disabled={!hasCriteria}>
+                    <BookmarkAddIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
               <Typography variant="caption" color="text.secondary">
                 Felder (from/absender, betreff, zeit, filename …) · <code>AND OR NOT</code> · Klammern ·{" "}
                 <code>"Phrase"</code> · <code>*</code> · <code>/Regex/</code> ·{" "}
@@ -400,14 +415,24 @@ export default function SearchPage() {
             )}
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Gespeicherte Filter
+                {mode === "mql" ? "Gespeicherter MQL-Ausdruck" : "Gespeicherte Filter"}
               </Typography>
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                {applied.q && <Chip size="small" label={`Volltext: ${applied.q}`} />}
-                {chips.map((c) => (
-                  <Chip key={String(c.key) + c.label} size="small" label={c.label} />
-                ))}
-              </Stack>
+              {mode === "mql" ? (
+                <Typography
+                  variant="body2"
+                  component="pre"
+                  sx={{ mt: 0.5, p: 1, bgcolor: "action.hover", borderRadius: 1, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
+                >
+                  {mqlText}
+                </Typography>
+              ) : (
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                  {applied.q && <Chip size="small" label={`Volltext: ${applied.q}`} />}
+                  {chips.map((c) => (
+                    <Chip key={String(c.key) + c.label} size="small" label={c.label} />
+                  ))}
+                </Stack>
+              )}
             </Box>
           </Stack>
         </DialogContent>
@@ -419,6 +444,49 @@ export default function SearchPage() {
             disabled={saveFavorite.isPending || !saveName.trim()}
           >
             {saveFavorite.isPending ? "…" : existing ? "Überschreiben" : "Speichern"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Großer, mehrzeiliger MQL-Editor (Popup) */}
+      <Dialog open={mqlPopup} onClose={() => setMqlPopup(false)} maxWidth="md" fullWidth>
+        <DialogTitle>MQL-Editor</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ border: 1, borderColor: mqlError ? "error.main" : "divider", borderRadius: 1, p: 0.5 }}>
+            <MqlEditor
+              value={mqlDraft}
+              onChange={setMqlDraft}
+              onSubmit={() => {
+                submitMql();
+                setMqlPopup(false);
+              }}
+              placeholder={MQL_PLACEHOLDER}
+              submitOnEnter={false}
+              minHeight="220px"
+              autoFocus
+            />
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+            Mehrzeilig — ideal für <code>foreach</code>. Enter = neue Zeile, Strg/⌘ + Enter oder „Suchen" führt aus.
+          </Typography>
+          {mqlError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              {mqlError.message}
+              {typeof mqlError.position === "number" ? ` (Position ${mqlError.position})` : ""}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMqlPopup(false)}>Schließen</Button>
+          <Button
+            variant="contained"
+            startIcon={<SearchIcon />}
+            onClick={() => {
+              submitMql();
+              setMqlPopup(false);
+            }}
+          >
+            Suchen
           </Button>
         </DialogActions>
       </Dialog>
